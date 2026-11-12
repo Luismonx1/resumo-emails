@@ -1,0 +1,10 @@
+.env
+.env.*
+!.env.example
+credentials/
+tokens/
+data/
+output/
+logs/
+node_modules/
+*.log
