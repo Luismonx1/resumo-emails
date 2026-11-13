@@ -8,10 +8,10 @@ export class Gmail {
     if (!this.token) throw new Error('Resposta de autorização sem token');
   }
   async api(path, body) {
+    if (body !== undefined || !/^(profile|messages\?|messages\/[a-zA-Z0-9_-]+\?format=full$)/.test(path)) throw new Error('Operação não permitida: acesso somente de leitura.');
     const response = await this.request(`https://gmail.googleapis.com/gmail/v1/users/me/${path}`, {
-      method: body ? 'POST' : 'GET', signal: AbortSignal.timeout(30000),
+      method: 'GET', signal: AbortSignal.timeout(30000),
       headers: { Authorization: `Bearer ${this.token}`, 'Content-Type': 'application/json' },
-      ...(body ? { body: JSON.stringify(body) } : {})
     });
     if (!response.ok) throw new Error(`Gmail falhou (HTTP ${response.status}); execução interrompida, sem resumo parcial.`);
     return response.json();

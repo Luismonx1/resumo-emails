@@ -29,6 +29,6 @@ const server = createServer(async (req, res) => {
 await new Promise(resolve => server.listen(0, '127.0.0.1', resolve));
 const redirect = `http://127.0.0.1:${server.address().port}/callback`;
 const timer = setTimeout(() => { console.error('Tempo para autorização esgotado.'); server.close(); process.exitCode = 1; }, 300000);
-const params = new URLSearchParams({ client_id: clientId, redirect_uri: redirect, response_type: 'code', scope: 'https://www.googleapis.com/auth/gmail.readonly https://www.googleapis.com/auth/gmail.send', access_type: 'offline', prompt: 'consent', state, code_challenge: createHash('sha256').update(verifier).digest('base64url'), code_challenge_method: 'S256' });
+const params = new URLSearchParams({ client_id: clientId, redirect_uri: redirect, response_type: 'code', scope: 'https://www.googleapis.com/auth/gmail.readonly', access_type: 'offline', prompt: 'consent', state, code_challenge: createHash('sha256').update(verifier).digest('base64url'), code_challenge_method: 'S256' });
 if (process.env.GMAIL_ACCOUNT) params.set('login_hint', process.env.GMAIL_ACCOUNT);
 console.log(`Abra no navegador para autorizar:\nhttps://accounts.google.com/o/oauth2/v2/auth?${params}`);

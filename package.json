@@ -3,6 +3,12 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "engines": { "node": ">=22" },
-  "scripts": { "test": "node --test", "preview": "node src/run.mjs", "send": "node src/run.mjs --send", "authorize": "node src/authorize.mjs" }
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "test": "node --test",
+    "preview": "node --env-file=.env src/run.mjs",
+    "authorize": "node --env-file=.env src/authorize.mjs"
+  }
 }

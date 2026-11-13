@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { windowFor, normalize, classify, mime, messageId, digest } from '../src/digest.mjs';
+import { windowFor, normalize, classify, digest } from '../src/digest.mjs';
 import { Gmail } from '../src/gmail.mjs';
 
 test('janela permanece estável em execuções atrasadas e antes das 9h', () => {
@@ -13,12 +13,14 @@ test('texto de anexos não participa da classificação e instruções são apen
   assert.ok(!m.text.includes('vaga'));
   assert.match(digest([m], windowFor(new Date('2026-11-12T15:00:00Z'))), /Nenhuma vaga foi aprovada/);
 });
-test('MIME limita destinatário e usa identidade determinística por conta e dia', () => {
-  assert.throws(() => mime('user@example.com\r\nBcc: other@example.com', '2026-11-12', 'x'));
-  const raw = Buffer.from(mime('user@example.com', '2026-11-12', 'Olá'), 'base64url').toString();
-  assert.match(raw, /To: user@example.com/);
-  assert.ok(raw.includes(messageId('user@example.com', '2026-11-12')));
-  assert.notEqual(messageId('a@example.com', 'day'), messageId('b@example.com', 'day'));
+test('cliente bloqueia envio e alterações antes de chamar a rede', async () => {
+  let requests = 0;
+  const gmail = new Gmail({}, async () => { requests++; return { ok: true, json: async () => ({}) }; });
+  await assert.rejects(gmail.api('messages/send', {raw:'x'}), /somente de leitura/);
+  await assert.rejects(gmail.api('messages/trash'), /somente de leitura/);
+  assert.equal(requests, 0);
+  await gmail.api('profile');
+  assert.equal(requests, 1);
 });
 test('paginação com IDs repetidos coleta mensagens uma única vez', async () => {
   const gmail = new Gmail({});
@@ -43,4 +45,22 @@ test('falha parcial aborta coleta em vez de gerar resumo incompleto', async () =
 test('erro de renovação não revela segredo', async () => {
   const gmail = new Gmail({ clientId: 'id', clientSecret: 'secret', refreshToken: 'private' }, async () => ({ ok: false, status: 401 }));
   await assert.rejects(gmail.authorize(), error => !error.message.includes('secret') && /401/.test(error.message));
+});
+
+
+test('resumo inclui vagas e retornos, mas exclui publicidade e assuntos pessoais', () => {
+  const make = (subject, text) => ({subject,text,from:'exemplo',link:'https://example.com'});
+  const jobs = [make('Estágio em dados', 'Belo Horizonte'), make('Sua candidatura', 'Entrevista amanhã'), make('Vaga para analista', 'Envie seu currículo')];
+  const other = [make('Oportunidade imperdível', 'Compre um celular'), make('Últimas vagas no curso', 'Curso de fotografia'), make('Entrevista com artista', 'Veja no jornal'), make('Conta pessoal', 'Fatura de energia')];
+  for (const m of jobs) assert.notEqual(classify(m), null);
+  for (const m of other) assert.equal(classify(m), null);
+  const output = digest([...jobs,...other], windowFor());
+  assert.match(output, /3 mensagem/);
+  for (const m of other) assert.ok(!output.includes(m.subject));
+});
+
+test('período sem vagas não revela mensagens descartadas', () => {
+  const output = digest([{subject:'Fatura particular',text:'Saldo privado'}], windowFor());
+  assert.match(output, /Nenhum e-mail relacionado a vagas/);
+  assert.ok(!output.includes('Saldo privado'));
 });

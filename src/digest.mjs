@@ -1,4 +1,3 @@
-import { createHash } from 'node:crypto';
 
 export function windowFor(now = new Date()) {
   const day = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Sao_Paulo', year: 'numeric', month: '2-digit', day: '2-digit' }).format(now);
@@ -25,17 +24,27 @@ export function normalize(message) {
 }
 
 export function classify(message) {
-  const text = folded(`${message.subject} ${message.text}`);
-  if (/\b(entrevista|teste tecnico|processo seletivo|candidatura|interview|assessment)\b/.test(text)) return 'Retornos, entrevistas e processos seletivos';
-  if (/\b(estagio|estagiari[oa]s?|internship|intern)\b/.test(text)) return 'Estágios — precisam de avaliação';
-  if (/\b(vagas?|oportunidades?|recrutamento|hiring|jobs?)\b/.test(text)) return 'Outras oportunidades';
-  return 'Demais e-mails';
+  const text = folded(clean(message.subject) + ' ' + clean(message.text));
+  // Generic words such as "oportunidade" or "entrevista" alone are not job evidence.
+  const jobContext = /\b(estagios?|estagiari[oa]s?|internships?|empregos?|recrutamento|recrutador[aes]*|candidat(?:ura|o|a)s?|processos? seletivos?|hiring|jobs?|job applications?|job interviews?|careers?)\b/.test(text)
+    || /\b(vagas?|oportunidades?)\s+(?:abertas?\s+)?(?:de |para |em |na area de )?(?:estagio|emprego|trabalho|desenvolv\w*|programa\w*|dados|analista|engenh\w*|ti\b|tecnologia|suporte|assistente|auxiliar|vendedor|gerente|profission\w*)\b/.test(text)
+    || /\b(vagas?|oportunidades?)\b.{0,100}\b(curriculo|candidate-se|candidatar|contratacao|salario|clt|remuneracao)\b/.test(text);
+  if (!jobContext) return null;
+  if (/\b(entrevistas?|testes? tecnicos?|processos? seletivos?|candidaturas?|interviews?|assessments?|job applications?)\b/.test(text)) return 'Retornos, entrevistas e processos seletivos';
+  if (/\b(estagios?|estagiari[oa]s?|internships?)\b/.test(text)) return 'Estágios — precisam de avaliação';
+  return 'Outras vagas';
+}
+
+export function selectJobMessages(messages) {
+  return messages.filter(message => classify(message) !== null);
 }
 
 export function digest(messages, window) {
-  const groups = ['Estágios — precisam de avaliação', 'Retornos, entrevistas e processos seletivos', 'Outras oportunidades', 'Demais e-mails'];
+  const groups = ['Estágios — precisam de avaliação', 'Retornos, entrevistas e processos seletivos', 'Outras vagas'];
+  messages = selectJobMessages(messages);
   const date = value => value.toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' });
-  const lines = [`Resumo diário — ${window.key}`, `Período: ${date(window.start)} até ${date(window.end)} (Brasília)`, `${messages.length} mensagem(ns).`, '', 'Resumo por extração de trechos, sem IA. A classificação é preliminar; consulte o e-mail original para requisitos e prazos. Nenhuma vaga foi aprovada pelo Busca Vagas.', ''];
+  const lines = [`Resumo diário — ${window.key}`, `Período: ${date(window.start)} até ${date(window.end)} (Brasília)`, `${messages.length} mensagem(ns) relacionada(s) a vagas.`, '', 'Resumo por extração de trechos, sem IA. A classificação é preliminar; consulte o e-mail original para requisitos e prazos. Nenhuma vaga foi aprovada pelo Busca Vagas.', ''];
+  if (!messages.length) lines.push('Nenhum e-mail relacionado a vagas identificado neste período.', '');
   for (const group of groups) {
     const items = messages.filter(m => classify(m) === group);
     lines.push(`${group} (${items.length})`);
@@ -45,14 +54,3 @@ export function digest(messages, window) {
   return lines.join('\n');
 }
 
-export function messageId(account, key) {
-  const hash = createHash('sha256').update(account.toLowerCase()).digest('hex').slice(0, 20);
-  return `resumo-emails.${hash}.${key}@resumo-emails.local`;
-}
-
-export function mime(account, key, body) {
-  if (!/^[a-zA-Z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-zA-Z0-9.-]+$/.test(account)) throw new Error('GMAIL_ACCOUNT inválida');
-  const subject = Buffer.from(`Resumo diário de e-mails — ${key}`).toString('base64');
-  const encoded = Buffer.from(body).toString('base64').match(/.{1,76}/g)?.join('\r\n') ?? '';
-  return Buffer.from([`From: ${account}`, `To: ${account}`, `Subject: =?UTF-8?B?${subject}?=`, `Message-ID: <${messageId(account, key)}>`, 'MIME-Version: 1.0', 'Content-Type: text/plain; charset=UTF-8', 'Content-Transfer-Encoding: base64', '', encoded].join('\r\n')).toString('base64url');
-}
