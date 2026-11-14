@@ -1,14 +1,30 @@
 {
-  "name": "resumo-emails",
+  "name": "@luismonx1/resumo-emails",
   "version": "0.1.0",
+  "description": "Resumo local e somente leitura de e-mails relacionados a vagas no Gmail.",
   "private": true,
   "type": "module",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Luismonx1/resumo-emails.git"
+  },
+  "homepage": "https://github.com/Luismonx1/resumo-emails#readme",
+  "bugs": {
+    "url": "https://github.com/Luismonx1/resumo-emails/issues"
+  },
+  "keywords": [
+    "gmail",
+    "email-digest",
+    "job-search",
+    "internship",
+    "oauth2"
+  ],
   "engines": {
     "node": ">=22"
   },
   "scripts": {
     "test": "node --test",
-    "preview": "node --env-file=.env src/run.mjs",
+    "digest": "node --env-file=.env src/run.mjs",
     "authorize": "node --env-file=.env src/authorize.mjs"
   }
 }
