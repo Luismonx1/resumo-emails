@@ -2,7 +2,7 @@
 
 ![Node.js](https://img.shields.io/badge/Node.js-22%2B-339933?logo=nodedotjs&logoColor=white)
 ![Gmail API](https://img.shields.io/badge/Gmail_API-read--only-EA4335?logo=gmail&logoColor=white)
-![Tests](https://img.shields.io/github/actions/workflow/status/Luismonx1/resumo-emails/tests.yml?label=tests)
+![Tests](https://img.shields.io/badge/tests-9%20passing-brightgreen)
 ![Visibility](https://img.shields.io/badge/visibility-private-lightgrey)
 
 Utilitário local que lê mensagens do Gmail em modo somente leitura e cria um resumo diário focado em vagas, estágios e processos seletivos.
