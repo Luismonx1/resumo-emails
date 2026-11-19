@@ -28,6 +28,17 @@ export class Gmail {
     } while (page);
     return [...ids];
   }
+  async trashMessage(id) {
+    if (this.config.allowTrash !== true) throw new Error('Lixeira desativada: habilitação explícita necessária.');
+    if (typeof id !== 'string' || !/^[a-zA-Z0-9_-]+$/.test(id)) throw new Error('ID de mensagem inválido.');
+    const response = await this.request(`https://gmail.googleapis.com/gmail/v1/users/me/messages/${id}/trash`, {
+      method: 'POST', signal: AbortSignal.timeout(30000), headers: { Authorization: `Bearer ${this.token}` },
+    });
+    if (!response.ok) throw new Error(`Não foi possível mover para a lixeira (HTTP ${response.status}).`);
+    const message = await response.json();
+    if (message.id !== id || !message.labelIds?.includes('TRASH')) throw new Error('Movimentação sem confirmação; conferir antes de repetir.');
+    return message;
+  }
   async collect(window) {
     const start = Math.floor(window.start.getTime() / 1000) - 1;
     const end = Math.ceil(window.end.getTime() / 1000);

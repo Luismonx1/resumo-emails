@@ -1,6 +1,14 @@
 # Configuração do Gmail
 
-Este guia configura o projeto com acesso **somente de leitura**. O aplicativo não precisa de permissão para enviar, excluir ou alterar mensagens.
+Por padrão, este guia configura acesso **somente de leitura**. A opção de lixeira abaixo exige consentimento adicional e não é usada pelo resumo automático.
+
+## Opcional: permitir mover alertas processados para a lixeira
+
+1. No mesmo projeto do Google Cloud, abra **Google Auth Platform → Acesso a dados → Adicionar ou remover escopos** e adicione `https://www.googleapis.com/auth/gmail.modify`. Esse escopo também cobre leitura; não é necessário adicionar `gmail.send` nem `https://mail.google.com/`.
+2. Execute `npm run authorize -- --allow-trash` nesta pasta e conclua o consentimento no navegador enquanto o terminal permanece aberto.
+3. A autorização só substitui `tokens/google.json` após receber o escopo solicitado. Se usar `GOOGLE_REFRESH_TOKEN` no ambiente, ele tem prioridade: remova esse override localmente para usar o arquivo renovado, sem divulgar seu conteúdo.
+
+O Google concede a `gmail.modify` poderes amplos, inclusive envio; a restrição a leitura/lixeira é do código, não da credencial. A classe Gmail só permite a operação de lixeira quando instanciada com `allowTrash: true`; não há envio nem exclusão permanente implementados. O resumo e o coletor Radar continuam sem habilitar a lixeira. A rotina automática de selecionar alertas totalmente processados ainda precisa ser integrada. Não usar apenas o estado lido como critério; preservar entrevistas, retornos e mensagens com vagas pendentes. Esta configuração não apaga nenhum e-mail por si só.
 
 ## 1. Criar o projeto no Google Cloud
 

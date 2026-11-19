@@ -1,6 +1,10 @@
 import { createServer } from 'node:http';
 import { randomBytes, createHash } from 'node:crypto';
-import { mkdir, writeFile } from 'node:fs/promises';
+import { mkdir, writeFile, rename } from 'node:fs/promises';
+
+const args = process.argv.slice(2);
+if (args.length && (args.length !== 1 || args[0] !== '--allow-trash')) throw new Error('Uso: npm run authorize -- [--allow-trash]');
+const scope = `https://www.googleapis.com/auth/gmail.${args.includes('--allow-trash') ? 'modify' : 'readonly'}`;
 
 const clientId = process.env.GOOGLE_CLIENT_ID;
 const clientSecret = process.env.GOOGLE_CLIENT_SECRET;
@@ -19,8 +23,10 @@ const server = createServer(async (req, res) => {
     if (!response.ok) throw new Error('Não foi possível trocar o código de autorização.');
     const token = await response.json();
     if (!token.refresh_token) throw new Error('Google não retornou refresh token. Refaça o consentimento.');
+    if (!(token.scope || '').split(' ').includes(scope)) throw new Error('A permissão solicitada não foi concedida. Token anterior preservado.');
     await mkdir('tokens', { recursive: true });
-    await writeFile('tokens/google.json', JSON.stringify({ refresh_token: token.refresh_token }, null, 2), { mode: 0o600 });
+    await writeFile('tokens/google.pending.json', JSON.stringify({ refresh_token: token.refresh_token, scope: token.scope }, null, 2), { mode: 0o600 });
+    await rename('tokens/google.pending.json', 'tokens/google.json');
     res.end('Autorização concluída. Pode fechar esta aba.');
     console.log('Token salvo em tokens/google.json (ignorado pelo Git). Não compartilhe seu conteúdo.');
   } catch (error) { res.writeHead(400).end('Autorização não concluída. Consulte o terminal.'); console.error(error.message); process.exitCode = 1; }
@@ -29,6 +35,6 @@ const server = createServer(async (req, res) => {
 await new Promise(resolve => server.listen(0, '127.0.0.1', resolve));
 const redirect = `http://127.0.0.1:${server.address().port}/callback`;
 const timer = setTimeout(() => { console.error('Tempo para autorização esgotado.'); server.close(); process.exitCode = 1; }, 300000);
-const params = new URLSearchParams({ client_id: clientId, redirect_uri: redirect, response_type: 'code', scope: 'https://www.googleapis.com/auth/gmail.readonly', access_type: 'offline', prompt: 'consent', state, code_challenge: createHash('sha256').update(verifier).digest('base64url'), code_challenge_method: 'S256' });
+const params = new URLSearchParams({ client_id: clientId, redirect_uri: redirect, response_type: 'code', scope, access_type: 'offline', prompt: 'consent', state, code_challenge: createHash('sha256').update(verifier).digest('base64url'), code_challenge_method: 'S256' });
 if (process.env.GMAIL_ACCOUNT) params.set('login_hint', process.env.GMAIL_ACCOUNT);
 console.log(`Abra no navegador para autorizar:\nhttps://accounts.google.com/o/oauth2/v2/auth?${params}`);
